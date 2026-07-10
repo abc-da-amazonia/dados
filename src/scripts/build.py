@@ -192,7 +192,7 @@ def get_episode_contributors():
             "log",
             "--format=%an",
             "--",
-            "episodios"
+            "src/episodios"
         ]
     )
 
