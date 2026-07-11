@@ -5,6 +5,8 @@ import json
 import sys
 import os
 import subprocess
+from html import escape
+from check_lista import check_lista
 
 import yaml
 
@@ -23,6 +25,66 @@ OUTPUT_FILE = DIST_DIR / "episodios.json"
 
 from src.schema import Episodio
 
+def generate_index(files):
+    files = [
+        file
+        for file in files
+        if file != "index.html"
+    ]
+
+    links = "\n".join(
+        f'<li><a href="{escape(file)}" target="_blank" rel="noopener noreferrer">{escape(file)}</a></li>'
+        for file in files
+    )
+
+    return f"""<!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                <meta charset="UTF-8">
+                <title>ABC da Amazônia - Arquivos</title>
+
+                <style>
+                body {{
+                    font-family: sans-serif;
+                    max-width: 800px;
+                    margin: 40px auto;
+                }}
+
+                li {{
+                    margin: 10px 0;
+                }}
+
+                a {{
+                    text-decoration: none;
+                }}
+                </style>
+
+                </head>
+
+                <body>
+
+                <ul>
+                {links}
+                </ul>
+
+                </body>
+                </html>
+                """
+
+def generate_dist_index():
+    files = [
+        file.name
+        for file in DIST_DIR.iterdir()
+        if file.is_file()
+    ]
+
+    html = generate_index(files)
+
+    with (DIST_DIR / "index.html").open(
+        "w",
+        encoding="utf-8"
+    ) as f:
+        f.write(html)
 
 def load_yaml_episodes():
     episodes = []
@@ -126,6 +188,8 @@ def build():
             ensure_ascii=False,
             indent=2,
         )
+    check_lista()
+    generate_dist_index()
 
     print(
         f"Build concluído."
