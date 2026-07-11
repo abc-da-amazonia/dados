@@ -2,6 +2,8 @@ from pathlib import Path
 import json
 import re
 import unicodedata
+from datetime import datetime, timezone
+import hashlib
 
 import yaml
 
@@ -99,6 +101,17 @@ def generate_report():
     
     return result
 
+def calculate_hash(payload):
+    content = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(
+        content.encode("utf-8")
+    ).hexdigest()
 
 def check_lista():
     report = generate_report()
@@ -107,22 +120,35 @@ def check_lista():
         exist_ok=True
     )
 
+    now = datetime.now(timezone.utc)
+
     payload = {
         "meta": {
+            "format": "episodios_mapeados",
+            "build_version": "1.0",
+
+            "generated_at": now.isoformat(),
+            "generated_timestamp": int(now.timestamp()),
+
             "total": len(report),
+
             "exists": sum(
                 1
                 for item in report
                 if item["exists"]
             ),
+
             "missing": sum(
                 1
                 for item in report
                 if not item["exists"]
             ),
         },
+
         "items": report,
     }
+
+    payload["meta"]["hash"] = calculate_hash(payload)
 
     with OUTPUT_FILE.open(
         "w",

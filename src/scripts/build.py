@@ -13,6 +13,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = ROOT.parent
+PAGES_BASE_URL = "https://abc-da-amazonia.github.io/dados"
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -20,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 SOURCE_DIR = ROOT / "episodios"
 DIST_DIR = ROOT / "dist"
 
+MANIFEST_FILE = DIST_DIR / "meta.json"
 OUTPUT_FILE = DIST_DIR / "episodios.json"
 
 
@@ -147,6 +149,57 @@ def generate_payload(episodes):
 
     return payload
 
+def generate_meta():
+    now = datetime.now(timezone.utc)
+
+    files = {}
+
+    for file in sorted(DIST_DIR.glob("*.json")):
+        if file.name == MANIFEST_FILE.name:
+            continue
+
+        with file.open(encoding="utf-8") as f:
+            data = json.load(f)
+
+        meta = data.get("meta", {})
+
+        relative = file.relative_to(DIST_DIR).as_posix()
+
+        files[file.stem] = {
+            "file_name": relative,
+            "url": f"{PAGES_BASE_URL}/{relative}",
+            "format": meta.get("format"),
+            "hash": meta.get("hash"),
+            "generated_at": meta.get("generated_at"),
+            "generated_timestamp": meta.get("generated_timestamp"),
+            "size": file.stat().st_size,
+        }
+
+    payload = {
+        "meta": {
+            "format": "manifest",
+            "build_version": "1.0",
+            "generated_at": now.isoformat(),
+            "generated_timestamp": int(now.timestamp()),
+            "total_files": len(files),
+        },
+        "files": files,
+    }
+
+    payload["meta"]["hash"] = calculate_hash(payload)
+
+    with MANIFEST_FILE.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(
+            payload,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    print(f"Manifesto gerado: {MANIFEST_FILE.name}")
 
 def calculate_hash(payload):
     content = json.dumps(
@@ -189,6 +242,7 @@ def build():
             indent=2,
         )
     check_lista()
+    generate_meta()
     generate_dist_index()
 
     print(
