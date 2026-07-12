@@ -90,6 +90,10 @@ def generate_dist_index():
 
 def load_yaml_episodes():
     episodes = []
+    seen_slugs = {}
+
+    def get_slug_from_filename(file):
+        return file.stem.rsplit("-", 1)[0]
 
     for file in sorted(SOURCE_DIR.glob("*.yaml")):
         with file.open(
@@ -108,6 +112,22 @@ def load_yaml_episodes():
 
         if not episodio.ativo:
             continue
+
+        slug = get_slug_from_filename(file)
+
+        if getattr(episodio, "slug", None) not in (None, slug):
+            raise ValueError(
+                "Slug inconsistente no build: "
+                f"{file.name} (arquivo={slug}, yaml={episodio.slug})"
+            )
+
+        if slug in seen_slugs:
+            raise ValueError(
+                "Slug duplicado no build: "
+                f"{slug} ({seen_slugs[slug]} e {file.name})"
+            )
+
+        seen_slugs[slug] = file.name
 
         episodes.append(
             episodio.model_dump(mode="json")

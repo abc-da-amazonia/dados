@@ -80,7 +80,6 @@ def generate_report():
         )
 
         entry = {
-            "id": f"X{counter:03d}",
             "titulo": item,
             "slug": slug,
             "exists": episode is not None,
@@ -89,7 +88,6 @@ def generate_report():
         if episode:
             entry.update(
                 {
-                    "existing_id": episode.get("id"),
                     "status": episode.get("status"),
                     "versao": episode.get("versao"),
                 }
