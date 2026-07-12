@@ -32,7 +32,6 @@ DANGEROUS_PATTERNS = [
 
 
 REQUIRED_FIELDS = {
-    "id",
     "titulo",
     "slug",
     "ano",
@@ -55,6 +54,7 @@ VALID_STATUS = {
     "completo",
     "parcial",
     "perdido",
+    "incompleto",
 }
 
 
@@ -68,10 +68,3 @@ def load_episodes():
         episodes.append((file, data))
 
     return episodes
-
-
-def get_episode_ids():
-    return {
-        data["id"]
-        for _, data in load_episodes()
-    }

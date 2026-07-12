@@ -14,6 +14,15 @@ from .conftest import (
     load_episodes,
 )
 
+NULL_ALLOWED_VIDEO_STATUS = {
+    "incompleto",
+    "perdido",
+}
+
+
+def has_videos(data):
+    return data["videos"] is not None
+
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_no_html_content(file, data):
     def check_value(value, path=""):
@@ -62,27 +71,13 @@ def test_content_sanitization(file, data):
                 )
 
     check_value(data)
-
-@pytest.mark.parametrize("file,data", load_episodes())
-def test_id_format(file, data):
-    assert re.match(
-        r"^[A-Z]\d{3}$",
-        data["id"]
-    ), (
-        f"{file.name}: id inválido {data['id']}"
-    )
-
-@pytest.mark.parametrize("file,data", load_episodes())
-def test_slug_format(file, data):
-    assert re.match(
-        r"^[a-z0-9-]+$",
-        data["slug"]
-    ), (
-        f"{file.name}: slug inválido {data['slug']}"
-    )
-
+    
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_url_has_no_credentials(file, data):
+    if not has_videos(data):
+        assert data["status"] in NULL_ALLOWED_VIDEO_STATUS
+        return
+
     for video in data["videos"]:
         parsed = urlparse(video["url"])
 
@@ -100,16 +95,27 @@ def test_required_fields(file, data):
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_filename(file, data):
-    expected = f'{data["id"]}-{data["slug"]}-{data["versao"]}'
+    expected_suffix = f'{data["slug"]}-{data["versao"]}'
 
-    assert file.stem == expected, (
-        f"{file.name} deveria se chamar {expected}.yaml"
+    assert file.stem.endswith(expected_suffix), (
+        f"{file.name} deveria terminar com {expected_suffix}.yaml"
+    )
+
+
+def test_slug_is_unique():
+    slugs = [
+        data["slug"]
+        for _, data in load_episodes()
+        if data and data["ativo"]
+    ]
+
+    assert len(slugs) == len(set(slugs)), (
+        "Existem slugs duplicados entre os episódios ativos"
     )
 
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_basic_types(file, data):
-    assert isinstance(data["id"], str)
     assert isinstance(data["titulo"], str)
     assert isinstance(data["slug"], str)
     assert isinstance(data["ano"], int)
@@ -119,17 +125,19 @@ def test_basic_types(file, data):
     assert isinstance(data["versao"], int)
     assert isinstance(data["ativo"], bool)
 
-    assert isinstance(data["videos"], list)
-    assert data["videos"], "Deve existir pelo menos um vídeo"
-
-
-@pytest.mark.parametrize("file,data", load_episodes())
-def test_filename_matches_id(file, data):
-    assert file.stem.startswith(data["id"])
+    if data["status"] in NULL_ALLOWED_VIDEO_STATUS:
+        assert data["videos"] is None
+    else:
+        assert isinstance(data["videos"], list)
+        assert data["videos"], "Deve existir pelo menos um vídeo"
 
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_video_fields(file, data):
+    if not has_videos(data):
+        assert data["status"] in NULL_ALLOWED_VIDEO_STATUS
+        return
+
     for video in data["videos"]:
         missing = VIDEO_FIELDS - video.keys()
 
@@ -140,6 +148,10 @@ def test_video_fields(file, data):
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_video_types(file, data):
+    if not has_videos(data):
+        assert data["status"] in NULL_ALLOWED_VIDEO_STATUS
+        return
+
     for video in data["videos"]:
         assert isinstance(video["tipo"], str)
         assert isinstance(video["duracao"], int)
@@ -149,6 +161,10 @@ def test_video_types(file, data):
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_urls(file, data):
+    if not has_videos(data):
+        assert data["status"] in NULL_ALLOWED_VIDEO_STATUS
+        return
+
     for video in data["videos"]:
         parsed = urlparse(video["url"])
 
@@ -158,17 +174,19 @@ def test_urls(file, data):
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_video_duration(file, data):
+    if not has_videos(data):
+        assert data["status"] in NULL_ALLOWED_VIDEO_STATUS
+        return
+
     for video in data["videos"]:
         assert video["duracao"] > 0
 
 
 @pytest.mark.parametrize("file,data", load_episodes())
 def test_transcription_not_empty(file, data):
+    if not has_videos(data):
+        assert data["status"] in NULL_ALLOWED_VIDEO_STATUS
+        return
+
     for video in data["videos"]:
         assert video["transcricao"].strip()
-
-
-def test_unique_ids():
-    ids = [data["id"] for _, data in load_episodes()]
-
-    assert len(ids) == len(set(ids))

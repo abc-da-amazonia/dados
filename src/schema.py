@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, field_validator
+from pydantic import BaseModel, HttpUrl, Field, field_validator, model_validator
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -30,7 +30,6 @@ class Video(BaseModel):
 
 
 class Episodio(BaseModel):
-    id: str
     titulo: str
     slug: str
     ano: int
@@ -38,22 +37,11 @@ class Episodio(BaseModel):
         "completo",
         "parcial",
         "perdido",
+        "incompleto"
     ]
     versao: int = Field(ge=1)
     ativo: bool
-    videos: list[Video]
-
-
-    @field_validator("id")
-    @classmethod
-    def validate_id(cls, value):
-        if not value.startswith("A"):
-            raise ValueError(
-                "id deve iniciar com A"
-            )
-
-        return value
-
+    videos: list[Video] | None
 
     @field_validator("slug")
     @classmethod
@@ -69,3 +57,12 @@ class Episodio(BaseModel):
             )
 
         return value
+
+    @model_validator(mode="after")
+    def validate_videos_for_status(self):
+        if self.videos is None and self.status not in {"incompleto", "perdido"}:
+            raise ValueError(
+                "videos não pode ser nulo para este status"
+            )
+
+        return self
