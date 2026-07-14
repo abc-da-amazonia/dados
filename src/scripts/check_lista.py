@@ -83,6 +83,8 @@ def generate_report():
             "titulo": item,
             "slug": slug,
             "exists": episode is not None,
+            "status": "incompleto",
+            "versao": None,
         }
 
         if episode:
